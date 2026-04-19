@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Curriculum Manager - Welcome</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; width: 450px; transition: 0.3s; }
+        h1 { color: #1c1e21; margin-bottom: 10px; }
+        .btn-group { display: flex; gap: 20px; justify-content: center; margin-top: 30px; }
+        button { padding: 15px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; width: 100%; }
+        .btn-teacher { background: #007bff; color: white; }
+        .btn-student { background: #28a745; color: white; }
+        .auth-box { display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        input { width: 85%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; }
+        .back-link { display: block; margin-top: 15px; color: #666; cursor: pointer; font-size: 14px; text-decoration: underline; }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="mainCard">
+        <h1>Welcome to Curriculum Manager</h1>
+        <p id="instruction">Please select your role to continue:</p>
+
+        <div id="roleSelection" class="btn-group">
+            <button class="btn-teacher" onclick="showAuth('teacher')">I am a Teacher</button>
+            <button class="btn-student" onclick="showAuth('student')">I am a Student</button>
+        </div>
+
+        <div id="teacherAuth" class="auth-box">
+            <h3 style="color: #007bff;">Teacher Portal</h3>
+            <div id="teacherLoginFields">
+                <input type="text" id="tEmpID" placeholder="Enter Employee ID">
+                <input type="password" id="tLoginPin" placeholder="Enter PIN">
+                <button class="btn-teacher" onclick="loginTeacher()">Login</button>
+                <p>New here? <span style="color:#007bff; cursor:pointer;" onclick="toggleTeacherReg(true)">Sign Up</span></p>
+            </div>
+            <div id="teacherRegFields" style="display:none;">
+                <input type="text" id="regTName" placeholder="Full Name">
+                <input type="text" id="regEmpID" placeholder="Assign EmpID">
+                <input type="password" id="regTPin" placeholder="Create 4-Digit PIN">
+                <button class="btn-teacher" onclick="registerTeacher()">Create Account</button>
+                <p><span style="color:#007bff; cursor:pointer;" onclick="toggleTeacherReg(false)">Back to Login</span></p>
+            </div>
+            <span class="back-link" onclick="resetUI()">← Change Role</span>
+        </div>
+
+        <div id="studentAuth" class="auth-box">
+            <h3 style="color: #28a745;">Student Portal</h3>
+            <div id="studentLoginFields">
+                <input type="email" id="sEmail" placeholder="Enter Registered Email">
+                <button class="btn-student" onclick="loginStudent()">Login</button>
+                <p>New student? <span style="color:#28a745; cursor:pointer;" onclick="toggleStudentReg(true)">Register Profile</span></p>
+            </div>
+            <div id="studentRegFields" style="display:none;">
+                <input type="text" id="regSName" placeholder="Full Name">
+                <input type="email" id="regSEmail" placeholder="Email Address">
+                <button class="btn-student" onclick="registerStudent()">Register</button>
+                <p><span style="color:#28a745; cursor:pointer;" onclick="toggleStudentReg(false)">Back to Login</span></p>
+            </div>
+            <span class="back-link" onclick="resetUI()">← Change Role</span>
+        </div>
+    </div>
+
+    <script>
+        function showAuth(role) {
+            document.getElementById('roleSelection').style.display = 'none';
+            document.getElementById('instruction').style.display = 'none';
+            if(role === 'teacher') document.getElementById('teacherAuth').style.display = 'block';
+            else document.getElementById('studentAuth').style.display = 'block';
+        }
+
+        function resetUI() {
+            document.getElementById('roleSelection').style.display = 'flex';
+            document.getElementById('instruction').style.display = 'block';
+            document.getElementById('teacherAuth').style.display = 'none';
+            document.getElementById('studentAuth').style.display = 'none';
+        }
+
+        function toggleTeacherReg(show) {
+            document.getElementById('teacherLoginFields').style.display = show ? 'none' : 'block';
+            document.getElementById('teacherRegFields').style.display = show ? 'block' : 'none';
+        }
+
+        function toggleStudentReg(show) {
+            document.getElementById('studentLoginFields').style.display = show ? 'none' : 'block';
+            document.getElementById('studentRegFields').style.display = show ? 'block' : 'none';
+        }
+
+        // --- UPDATED AUTH LOGIC ---
+
+        async function loginTeacher() {
+            const emp_id = document.getElementById('tEmpID').value;
+            const pin = document.getElementById('tLoginPin').value;
+
+            // FIX: Sending JSON body to match 'TeacherLogin' schema
+            const res = await fetch('/auth/teacher-login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ emp_id, pin })
+            });
+
+            if (res.ok) {
+                localStorage.setItem('teacherAuth', 'true');
+                window.location.href = "/static/teacher.html";
+            } else { 
+                alert("Invalid Credentials. Please Sign Up first."); 
+            }
+        }
+
+        async function registerTeacher() {
+            const payload = {
+                name: document.getElementById('regTName').value,    // Changed to 'name'
+                emp_id: document.getElementById('regEmpID').value, // Changed to 'emp_id'
+                pin: document.getElementById('regTPin').value      // Added 'pin'
+            };
+
+            const res = await fetch('/auth/teacher-register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) { 
+                alert("Teacher Registered! You can now login."); 
+                toggleTeacherReg(false); 
+            } else {
+                alert("Registration failed. Check if EmpID already exists.");
+            }
+        }
+
+        async function loginStudent() {
+    const email = document.getElementById('sEmail').value;
+    const safeEmail = encodeURIComponent(email.trim());
+
+    const res = await fetch(`/student/auth/${safeEmail}`);
+    if (res.ok) {
+        // 1. Save the email so student.html can use it
+        localStorage.setItem('studentEmail', email.trim());
+        
+        // 2. THIS IS THE MOST IMPORTANT LINE - Redirects to the dashboard
+        window.location.href = "student.html"; 
+    } else {
+        alert("Student not found!");
+    }
+}
+
+        async function registerStudent() {
+            const payload = {
+                student_name: document.getElementById('regSName').value,
+                student_email: document.getElementById('regSEmail').value
+            };
+            const res = await fetch('/student/register', { 
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) { alert("Profile Registered! Now Login."); toggleStudentReg(false); }
+        }
+    </script>
+</body>
+</html>

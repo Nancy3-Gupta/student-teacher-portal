@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Performance Portal</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; max-width: 800px; margin-left: auto; margin-right: auto; }
+        #dashboard { display: none; }
+        .progress-container { background: #eee; border-radius: 10px; margin: 10px 0; }
+        .progress-bar { background: #28a745; height: 25px; color: white; text-align: center; border-radius: 10px; line-height: 25px; transition: width 0.5s; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        input { padding: 10px; width: 250px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button.logout { background: #dc3545; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="authCard">
+        <h2>Student Login</h2>
+        <p>Enter your registered email to view your performance report.</p>
+        <input type="email" id="studentEmailInput" placeholder="ayush@gmail.com">
+        <button onclick="authenticateStudent()">View Report</button>
+    </div>
+
+    <div id="dashboard">
+        <div class="card">
+            <h2 id="welcomeText">Welcome!</h2>
+            <p><strong>Target:</strong> <span id="targetText">0</span>%</p>
+            <p><strong>Teacher Feedback:</strong> <em id="remarkText">No remarks yet.</em></p>
+        </div>
+        <div class="card">
+            <h3>Syllabus Coverage</h3>
+            <div class="progress-container">
+                <div id="syllabusBar" class="progress-bar" style="width: 0%">0%</div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>AI Performance Prediction</h3>
+            <h1 id="predictionValue" style="color:#007bff">0%</h1>
+        </div>
+        <div class="card">
+            <h3>Marks History</h3>
+            <table>
+                <thead><tr><th>Month</th><th>Score</th><th>Total</th></tr></thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+        <button class="logout" onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        // Use a brand new function name to bypass any browser cache issues
+        async function authenticateStudent() {
+            const emailField = document.getElementById('studentEmailInput');
+            const emailValue = emailField.value.trim();
+            
+            if (!emailValue) {
+                alert("Please enter your email");
+                return;
+            }
+
+            const res = await fetch(`/student/auth/${encodeURIComponent(emailValue)}`);
+
+            if (res.ok) {
+                // CORRECT: Use setItem, not an assignment to getItem
+                localStorage.setItem('studentEmail', emailValue);
+                renderDashboard(); 
+            } else {
+                alert("Student profile not found.");
+            }
+        }
+
+        async function renderDashboard() {
+            const email = localStorage.getItem('studentEmail');
+            if (!email) return;
+
+            // Switch visibility
+            const authCard = document.getElementById('authCard');
+            const dashboard = document.getElementById('dashboard');
+            if (authCard) authCard.style.display = 'none';
+            if (dashboard) dashboard.style.display = 'block';
+
+            const safeEmail = encodeURIComponent(email);
+
+            try {
+                // Fetch Profile & History in parallel
+                const [authRes, historyRes, progRes] = await Promise.all([
+                    fetch(`/student/auth/${safeEmail}`),
+                    fetch(`/student/marks/all/${safeEmail}`),
+                    fetch('/curriculum/progress')
+                ]);
+
+                if (authRes.ok) {
+                    const data = await authRes.json();
+                    document.getElementById('welcomeText').innerText = "Hello, " + data.profile.student_name;
+                    document.getElementById('predictionValue').innerText = data.prediction + "%";
+                    document.getElementById('targetText').innerText = data.profile.target_score;
+                    document.getElementById('remarkText').innerText = data.profile.remarks;
+                }
+
+                if (historyRes.ok) {
+                    const historyData = await historyRes.json();
+                    document.getElementById('historyBody').innerHTML = historyData.map(record => `
+                        <tr>
+                            <td>Month ${record.month_index}</td>
+                            <td>${record.score}</td>
+                            <td>${record.total_marks}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                if (progRes.ok) {
+                    const progData = await progRes.json();
+                    const bar = document.getElementById('syllabusBar');
+                    bar.style.width = progData.progress_percent + "%";
+                    bar.innerText = progData.progress_percent + "%";
+                }
+            } catch (err) {
+                console.error("Dashboard error:", err);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem('studentEmail')) {
+                renderDashboard();
+            }
+        };
+    </script>
+</body>
+</html>

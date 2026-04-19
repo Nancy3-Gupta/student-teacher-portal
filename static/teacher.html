@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Control Center</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: auto; padding: 20px; background: #f4f7f6; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h1 { color: #333; text-align: center; }
+        h3 { margin-top: 0; color: #555; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        input, select { padding: 10px; margin: 8px 5px; width: 220px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: #f8f9fa; color: #666; }
+        .nav-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <a href="/static/index.html" class="nav-link">⬅ Back to Role Selection</a>
+    <h1>Teacher Control Center</h1>
+
+  <div id="authSection" class="card" style="text-align: center;">
+    <h2>Teacher Access</h2>
+    <input type="text" id="login_id_input" placeholder="Enter Employee ID">
+    <input type="password" id="login_pin_input" placeholder="Enter PIN">
+    <br>
+    <button onclick="handleTeacherLogin()">Login</button>
+    <p>New here? <a href="#" onclick="showRegisterForm()">Sign Up</a></p>
+</div>
+
+    <div id="registerSection" class="card" style="display: none;">
+        <h3>Create Teacher Profile</h3>
+        <input type="text" id="tName" placeholder="name">
+        <input type="text" id="tEmpId" placeholder="emp_id">
+        <input type="password" id="tPin" placeholder="pin">
+        <button onclick="finalSubmit()">Register Account</button>
+        <button onclick="location.reload()" style="background:#ccc;">Cancel</button>
+    </div>
+
+    <div id="dashboardSection" style="display: none;">
+        <div class="card">
+            <h3>Register New Student</h3>
+            <input type="text" id="regName" placeholder="Full Name">
+            <input type="email" id="regEmail" placeholder="student@email.com">
+            <button onclick="registerStudent()">Add Student</button>
+        </div>
+
+        <div class="card">
+            <h3>Add Topic to Syllabus</h3>
+            <input type="text" id="topicName" placeholder="Topic Name">
+            <input type="text" id="monthName" placeholder="Month (e.g. Jan)">
+            <button onclick="addTopic()">Add Topic</button>
+        </div>
+
+        <div class="card" style="border-top: 4px solid #28a745;">
+            <h3>Add Marks & Feedback</h3>
+            <input type="text" id="studentName" placeholder="Student Name">
+            <input type="email" id="studentEmail" placeholder="Student Email">
+            <input type="number" id="score" placeholder="Score">
+            <input type="number" id="total" placeholder="Total Marks">
+            <input type="number" id="mIndex" placeholder="Month Index (1-12)">
+            <input type="number" id="targetScore" placeholder="Target %">
+            <input type="text" id="remarks" placeholder="Feedback/Remarks" style="width: 400px;">
+            <button onclick="addMarks()" class="btn-success">Save Marks</button>
+        </div>
+
+        <div class="card">
+            <h3>Current Syllabus Status</h3>
+            <table>
+                <thead>
+                    <tr><th>Topic</th><th>Month</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <button onclick="logoutTeacher()" class="btn-danger">Logout Teacher Session</button>
+    </div>
+
+    <script>
+        // --- Persistence Logic ---
+        window.onload = () => { 
+            if(localStorage.getItem('teacherAuth') === 'true') {
+                showDashboard(); 
+            }
+        };
+
+        // --- Authentication Flow ---
+        function showRegisterForm() {
+            if (prompt("Enter Master Admin Code:") === "admin123") {
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('registerSection').style.display = 'block';
+            } else {
+                alert("Incorrect Admin Code.");
+            }
+        }
+
+        async function finalSubmit() {
+            const payload = {
+                name: document.getElementById('tName').value,
+                emp_id: document.getElementById('tEmpId').value,
+                pin: document.getElementById('tPin').value
+            };
+
+            if(!payload.name || !payload.emp_id || !payload.pin) {
+                alert("All fields are required!");
+                return;
+            }
+
+            const res = await fetch('/auth/teacher-register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert("Registration Successful! Please login.");
+                location.reload();
+            } else {
+                alert("Registration Failed. ID might already exist.");
+            }
+        }
+
+        async function handleTeacherLogin() {
+    const emp_id = document.getElementById('login_id_input').value;
+    const pin = document.getElementById('login_pin_input').value;
+
+    const res = await fetch('/auth/teacher-login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ emp_id, pin })
+    });
+
+    if (res.ok) {
+        localStorage.setItem('teacherAuth', 'true');
+        showDashboard();
+    } else {
+        alert("Login Failed: Incorrect ID or PIN");
+    }
+}
+                
+        function showDashboard() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('registerSection').style.display = 'none';
+            document.getElementById('dashboardSection').style.display = 'block';
+            loadTable();
+        }
+
+        function logoutTeacher() { 
+            localStorage.removeItem('teacherAuth'); 
+            location.reload(); 
+        }
+
+        // --- Dashboard Actions ---
+        async function registerStudent() {
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const res = await fetch('/student/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({student_name: name, student_email: email})
+            });
+            if(res.ok) alert("Student Registered!");
+        }
+
+        async function addTopic() {
+            const topic_name = document.getElementById('topicName').value;
+            const month = document.getElementById('monthName').value;
+            const res = await fetch('/curriculum/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({topic_name, month})
+            });
+            if(res.ok) loadTable();
+        }
+
+        async function addMarks() {
+            const payload = {
+                student_name: document.getElementById('studentName').value,
+                student_email: document.getElementById('studentEmail').value,
+                score: parseInt(document.getElementById('score').value),
+                total_marks: parseInt(document.getElementById('total').value),
+                month_index: parseInt(document.getElementById('mIndex').value),
+                remarks: document.getElementById('remarks').value,
+                target_score: parseInt(document.getElementById('targetScore').value)
+            };
+            const res = await fetch('/marks/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) alert("Marks Saved Successfully!");
+        }
+
+        async function loadTable() {
+            const res = await fetch('/curriculum/list');
+            const data = await res.json();
+            const body = document.getElementById('tableBody');
+            body.innerHTML = data.map(t => `
+                <tr>
+                    <td>${t.topic_name}</td>
+                    <td>${t.month}</td>
+                    <td>${t.is_completed ? '✅ Done' : '⏳ Pending'}</td>
+                    <td>${!t.is_completed ? `<button onclick="markDone(${t.id})">Mark Complete</button>` : '---'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function markDone(id) {
+            await fetch(`/curriculum/complete/${id}`, {method: 'PUT'});
+            loadTable();
+        }
+    </script>
+</body>
+</html>
